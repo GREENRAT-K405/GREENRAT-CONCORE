@@ -1,0 +1,14 @@
+#!/bin/bash
+which open
+if [ $? == 0 ] 
+then
+   open https://controlcore-project.github.io/concore-editor/
+else
+   which xdg-open
+   if [ $? == 0 ] 
+   then
+      xdg-open https://controlcore-project.github.io/concore-editor/
+   else
+      echo "unable to open browser for concore-editor"
+   fi
+fi
