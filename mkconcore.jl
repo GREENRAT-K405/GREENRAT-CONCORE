@@ -14,10 +14,9 @@ const VEXE = "iverilog"
 # --- XML Recursive Finder ---
 function get_all_tags(root_elem, tagname)
     results = []
-    local_name = contains(tagname, ":") ? split(tagname, ":")[2] : tagname
-    
     for c in child_elements(root_elem)
-        if name(c) == local_name
+        n = name(c)
+        if n == tagname || endswith(n, ":" * tagname) || endswith(n, tagname)
             push!(results, c)
         end
         append!(results, get_all_tags(c, tagname))
@@ -49,22 +48,9 @@ function main()
         exit(1)
     end
 
-    # --- Initialization ---
-    mkpath(outdir)
-    mkpath(joinpath(outdir, "src"))
-
-    is_windows = (concore_type == "windows")
-    ext = is_windows ? ".bat" : ""
-
-    fbuild = open(joinpath(outdir, "build$ext"), "w")
-    frun = open(joinpath(outdir, "run$ext"), "w")
-    fdebug = open(joinpath(outdir, "debug$ext"), "w")
-    fstop = open(joinpath(outdir, "stop$ext"), "w")
-    fclear = open(joinpath(outdir, "clear$ext"), "w")
-    fmaxtime = open(joinpath(outdir, "maxtime$ext"), "w")
-    funlock = open(joinpath(outdir, "unlock$ext"), "w")
-
-    # --- GraphML Parsing ---
+    # ==========================================
+    # 1. PARSE GRAPHML FIRST
+    # ==========================================
     xdoc = parse_file(graphml_file)
     xroot = root(xdoc)
 
@@ -74,7 +60,7 @@ function main()
     # Parse Nodes
     for node in get_all_tags(xroot, "node")
         node_id = attribute(node, "id")
-        for label in get_all_tags(node, "y:NodeLabel")
+        for label in get_all_tags(node, "NodeLabel")
             label_text = strip(content(label))
             nodes_dict[node_id] = replace(label_text, r"(\s+|\n)" => " ")
         end
@@ -84,7 +70,7 @@ function main()
     for edge in get_all_tags(xroot, "edge")
         source_id = attribute(edge, "source")
         target_id = attribute(edge, "target")
-        for label in get_all_tags(edge, "y:EdgeLabel")
+        for label in get_all_tags(edge, "EdgeLabel")
             edge_label = strip(content(label))
             source_node = get(nodes_dict, source_id, "")
             target_node = get(nodes_dict, target_id, "")
@@ -103,6 +89,23 @@ function main()
         println("Error: No nodes found in $graphml_file. XML parsing failed.")
         exit(1)
     end
+
+    # ==========================================
+    # 2. CREATE DIRECTORIES AND FILES
+    # ==========================================
+    mkpath(outdir)
+    mkpath(joinpath(outdir, "src"))
+
+    is_windows = (concore_type == "windows")
+    ext = is_windows ? ".bat" : ""
+
+    fbuild = open(joinpath(outdir, "build$ext"), "w")
+    frun = open(joinpath(outdir, "run$ext"), "w")
+    fdebug = open(joinpath(outdir, "debug$ext"), "w")
+    fstop = open(joinpath(outdir, "stop$ext"), "w")
+    fclear = open(joinpath(outdir, "clear$ext"), "w")
+    fmaxtime = open(joinpath(outdir, "maxtime$ext"), "w")
+    funlock = open(joinpath(outdir, "unlock$ext"), "w")
 
     # --- Port Map Logic ---
     num_nodes = length(nodes_dict)
@@ -269,7 +272,7 @@ function main()
         end
     end
 
-    # --- Run, Stop, Clear Script Generation ---
+    # --- Run, Stop, Clear, Debug, Maxtime, Unlock Script Generation ---
     if is_windows
         for (node_id, node_val) in nodes_dict
             container, source = split(node_val, ':')
@@ -277,8 +280,10 @@ function main()
                 dockername, langext = splitext(source)
                 if langext == ".jl"
                     write(frun, "start /B /D $container $JULIAEXE $source >$container\\concoreout.txt\n")
+                    write(fdebug, "start /D $container cmd /K $JULIAEXE $source\n")
                 elseif langext == ".py"
                     write(frun, "start /B /D $container $PYTHONWIN $source >$container\\concoreout.txt\n")
+                    write(fdebug, "start /D $container cmd /K $PYTHONWIN $source\n")
                 end
                 write(fstop, "if exist $container\\concorekill.bat cmd /C $container\\concorekill\n")
                 write(fstop, "if exist $container\\concorekill.bat del $container\\concorekill.bat\n")
@@ -286,6 +291,8 @@ function main()
         end
         for edges in keys(edges_dict)
             write(fclear, "del /Q $edges\\*\n")
+            write(fmaxtime, "echo %1 > $edges\\concore.maxtime\n")
+            write(funlock, "copy %HOMEDRIVE%%HOMEPATH%\\concore.apikey $edges\\concore.apikey\n")
         end
     else
         for (node_id, node_val) in nodes_dict
@@ -294,8 +301,10 @@ function main()
                 dockername, langext = splitext(source)
                 if langext == ".jl"
                     write(frun, "(cd $container; $JULIAEXE $source >concoreout.txt & echo \$! >concorepid)&\n")
+                    write(fdebug, "xterm -e bash -c \"cd $container; $JULIAEXE $source; bash\" &\n")
                 elseif langext == ".py"
                     write(frun, "(cd $container; $PYTHONEXE $source >concoreout.txt & echo \$! >concorepid)&\n")
+                    write(fdebug, "xterm -e bash -c \"cd $container; $PYTHONEXE $source; bash\" &\n")
                 end
                 write(fstop, "kill -9 `cat $container/concorepid` 2>/dev/null\n")
                 write(fstop, "rm -f $container/concorepid\n")
@@ -303,6 +312,8 @@ function main()
         end
         for edges in keys(edges_dict)
             write(fclear, "rm -f $edges/*\n")
+            write(fmaxtime, "echo \"\$1\" > $edges/concore.maxtime\n")
+            write(funlock, "cp ~/concore.apikey $edges/concore.apikey\n")
         end
     end
 
