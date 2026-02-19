@@ -14,6 +14,8 @@ CPPWIN    = "g++"        #Windows C++  6/22/21
 CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 VWIN      = "iverilog"   #Windows verilog  6/25/21
 VEXE      = "iverilog"   #Ubuntu/macOS verilog  6/25/21
+JULIAWIN  = "julia"      #Windows julia
+JULIAEXE  = "julia"      #Ubuntu/macOS julia
 CPPEXE    = "g++"        #Ubuntu/macOS C++  6/22/21
 PYTHONEXE = "python3"    #Ubuntu/macOS python 3
 PYTHONWIN = "python"         #Windows python 3
@@ -264,6 +266,19 @@ with open(outdir+"/src/concore.v","w") as fcopy:
     fcopy.write(fsource.read())
 fsource.close()
 
+#copy proper concore.jl into /src
+try:
+    if concoretype=="docker":
+        fsource = open(CONCOREPATH+"/concoredocker.jl")
+    else:
+        fsource = open(CONCOREPATH+"/concore.jl")
+except:
+    print(CONCOREPATH+" is not correct path to concore")
+    quit()
+with open(outdir+"/src/concore.jl","w") as fcopy:
+    fcopy.write(fsource.read())
+fsource.close()
+
 #copy mkcompile into /src  5/27/21
 try:
     fsource = open(CONCOREPATH+"/mkcompile")
@@ -404,6 +419,9 @@ if (concoretype=="docker"):
                     elif langext == "v":  # 6/26/21
                         fsource = open(CONCOREPATH+"/Dockerfile.v")
                         print("assuming .v extension for Dockerfile")
+                    elif langext == "jl":
+                        fsource = open(CONCOREPATH+"/Dockerfile.jl")
+                        print("assuming .jl extension for Dockerfile")
                     elif langext == "sh":  # 5/19/21
                         fsource = open(CONCOREPATH+"/Dockerfile.sh")
                         print("assuming .sh extension for Dockerfile")
@@ -417,6 +435,8 @@ if (concoretype=="docker"):
                     fcopy.write(fsource.read())
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
+                    if langext=="jl":
+                        fcopy.write('CMD ["julia", "-i", "'+sourcecode+'"]\n')
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
@@ -442,6 +462,8 @@ if (concoretype=="docker"):
                 fbuild.write("cp ../src/concore.hpp .\n")
             elif langext == "v": #6/25/21
                 fbuild.write("cp ../src/concore.v .\n")
+            elif langext == "jl":
+                fbuild.write("cp ../src/concore.jl .\n")
             if langext == "m":
                 fbuild.write("cp ../src/concore_*.m .\n")
                 fbuild.write("cp ../src/import_concore.m .\n")
@@ -607,10 +629,12 @@ for node in nodes_dict:
             fbuild.write("copy .\\src\\"+sourcecode+" .\\"+containername+"\\"+sourcecode+"\n")
             if langext == "py":
                 fbuild.write("copy .\\src\\concore.py .\\" + containername + "\\concore.py\n")
-            elif langext == "cpp": # 6/22/21
+            elif langext == "cpp": # 6/22/21
                 fbuild.write("copy .\\src\\concore.hpp .\\" + containername + "\\concore.hpp\n")
-            elif langext == "v": # 6/25/21
+            elif langext == "v": # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
+            elif langext == "jl":
+                fbuild.write("copy .\\src\\concore.jl .\\" + containername + "\\concore.jl\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -627,6 +651,8 @@ for node in nodes_dict:
                 fbuild.write("cp ./src/concore.hpp ./"+containername+"/concore.hpp\n")
             elif langext == "v":
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
+            elif langext == "jl":
+                fbuild.write("cp ./src/concore.jl ./"+containername+"/concore.jl\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
@@ -681,7 +707,7 @@ for node in nodes_dict:
   containername,sourcecode = nodes_dict[node].split(':')
   if len(sourcecode)!=0:
       dockername,langext = sourcecode.split(".")
-      if not (langext in ["py","m","sh","cpp","v"]): # 6/22/21
+      if not (langext in ["py","m","sh","cpp","v","jl"]): # 6/22/21
           print("."+langext+" not supported (Yet)")
           quit()
       if concoretype=="windows":
@@ -709,6 +735,9 @@ for node in nodes_dict:
               fdebug.write('cd ..\n')
               fdebug.write('start /D '+containername+' cmd /K vvp a.out\n')
               #fdebug.write('start /D '+containername+' cmd /K "'+CPPWIN+' '+sourcecode+'|a"\n')
+          elif langext=="jl":
+              frun.write('start /B /D '+containername+" "+JULIAWIN+" "+sourcecode+" >"+containername+"\\concoreout.txt\n")
+              fdebug.write('start /D '+containername+" cmd /K "+JULIAWIN+" "+sourcecode+"\n")
           elif langext=="m":  #3/23/21
               if M_IS_OCTAVE:   
                   frun.write('start /B /D '+containername+" "+OCTAVEWIN+' -qf --eval "run('+"'"+sourcecode+"'"+')"'+" >"+containername+"\\concoreout.txt\n")
@@ -741,6 +770,14 @@ for node in nodes_dict:
               else:
                   fdebug.write('concorewd=`pwd`\n')
                   fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+VEXE+" "+sourcecode+';vvp a.out\\""\n')
+          elif langext=="jl":
+              frun.write('(cd '+containername+";"+JULIAEXE+" "+sourcecode+" >concoreout.txt&echo $!>concorepid)&\n")
+              if ubuntu:
+                  fdebug.write('concorewd=`pwd`\n')
+                  fdebug.write('xterm -e bash -c "cd $concorewd/'+containername+";"+JULIAEXE+" "+sourcecode+';bash"&\n')
+              else:
+                  fdebug.write('concorewd=`pwd`\n')
+                  fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd $concorewd/'+containername+";"+JULIAEXE+" "+sourcecode+'\\""\n')
           elif langext=="sh": # 5/19/21
               frun.write('(cd '+containername+";./"+sourcecode+" "+ MCRPATH + " >concoreout.txt&echo $!>concorepid)&\n")
               if ubuntu:
@@ -790,7 +827,7 @@ for node in nodes_dict:
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             if concoretype=="windows":
-                fclear.write('del /Q' + writeedges.split(":")[0].split("-v")[1]+ "\\*\n")
+                fclear.write('del /Q ' + writeedges.split(":")[0].split("-v")[1]+ "\\*\n")
             else:
                 fclear.write('rm ' + writeedges.split(":")[0].split("-v")[1]+ "/*\n")
             writeedges = writeedges[writeedges.find(":")+1:]
@@ -820,7 +857,7 @@ for node in nodes_dict:
         writeedges = volswr[i]
         while writeedges.find(":") != -1: 
             if concoretype=="windows":
-                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\concore.apikey' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
+                funlock.write('copy %HOMEDRIVE%%HOMEPATH%\concore.apikey ' + writeedges.split(":")[0].split("-v")[1]+ "\\concore.apikey\n")
             else:
                 funlock.write('cp ~/concore.apikey ' + writeedges.split(":")[0].split("-v")[1]+ "/concore.apikey\n")
             writeedges = writeedges[writeedges.find(":")+1:]
@@ -841,5 +878,4 @@ if concoretype != "windows":
     os.chmod(outdir+"/stop",stat.S_IRWXU)  
     os.chmod(outdir+"/clear",stat.S_IRWXU) 
     os.chmod(outdir+"/maxtime",stat.S_IRWXU) 
-    os.chmod(outdir+"/unlock",stat.S_IRWXU) 
-
+    os.chmod(outdir+"/unlock",stat.S_IRWXU)
