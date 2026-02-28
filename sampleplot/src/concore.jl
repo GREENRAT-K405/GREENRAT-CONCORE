@@ -1,9 +1,5 @@
 module ConcoreModule
 
-using JSON  # Added for robust cross-language serialization
-
-println("This is terminal for Julia node")
-
 export read_data!, write_data!, unchanged!, initval!, default_maxtime!
 
 # --- Global Variables (matching concore.py) ---
@@ -20,54 +16,39 @@ global oport = Dict{String, Int}()
 
 # --- Helper Functions ---
 
-# Helper: Pre-process Python string representations to valid JSON
-function python_to_json_string(str::String)
-    # Python's str() outputs single quotes and capitalized booleans/nulls.
-    # JSON requires double quotes, true, false, null.
-    clean_str = replace(str, "'" => "\"")
-    clean_str = replace(clean_str, "True" => "true")
-    clean_str = replace(clean_str, "False" => "false")
-    clean_str = replace(clean_str, "None" => "null")
-    return clean_str
-end
-
 # Helper: Safely parses python-style dict strings from file
 function parse_port_file(filename::String)
+    d = Dict{String, Int}()
     if isfile(filename)
-        try
-            content = read(filename, String)
-            clean_content = python_to_json_string(content)
-            parsed = JSON.parse(clean_content)
-            # Convert keys to String and values to Int to ensure Dict{String, Int}
-            return Dict{String, Int}(string(k) => Int(v) for (k, v) in parsed)
-        catch e
-            println("Warning: Could not parse $filename. Returning empty Dict.")
+        content = read(filename, String)
+        # Regex to match key-value pairs ignoring quotes and spaces
+        matches = eachmatch(r"['\"]([^'\"]+)['\"]\s*:\s*(\d+)", content)
+        for m in matches
+            d[m.captures[1]] = parse(Int, m.captures[2])
         end
     end
-    return Dict{String, Int}()
+    return d
 end
 
-# Helper: Parses string arrays natively using JSON
+# Helper: Parses string arrays: "[1.0, 2.5]" -> Vector{Float64}
 function parse_array(str::String)
-    if isempty(strip(str)) return [] end
-    try
-        clean_str = python_to_json_string(str)
-        return JSON.parse(clean_str)
-    catch e
-        println("Warning: Failed to parse array string: $str")
-        return []
-    end
+    clean_str = strip(str, ['[', ']', ' ', '\n', '\r'])
+    if isempty(clean_str) return Float64[] end
+    parts = split(clean_str, ',')
+    parts = filter(!isempty, parts)
+    return parse.(Float64, parts)
 end
 
 # --- Initialization Logic ---
 
+# Python: if hasattr(sys, 'getwindowsversion')...
 if Sys.iswindows()
     open("concorekill.bat", "w") do fpid
         write(fpid, "taskkill /F /PID $(getpid())\n")
     end
 end
 
-# Try loading ports
+# Python: try loading ports
 try
     global iport = parse_port_file("concore.iport")
 catch
@@ -88,6 +69,7 @@ function default_maxtime!(default::Float64=100.0)
     try
         if isfile(filepath)
             content = read(filepath, String)
+            # Assuming file contains a scalar number
             global maxtime = parse(Float64, strip(content))
         else
             global maxtime = default
@@ -97,6 +79,7 @@ function default_maxtime!(default::Float64=100.0)
     end
 end
 
+# Initialize maxtime immediately (like Python script execution)
 default_maxtime!(100.0)
 
 function unchanged!()
@@ -137,31 +120,33 @@ function read_data!(port::Int, name::String, initstr::String)
     inval = parse_array(ins)
     
     if length(inval) > 0
-        # Cast simtime safely in case JSON parsed it as an Int
-        global simtime = max(simtime, Float64(inval[1]))
+        # Python: simtime = max(simtime, inval[0])
+        global simtime = max(simtime, inval[1])
         return inval[2:end]
     end
     
-    return []
+    return Float64[]
 end
 
-# Changed Vector{<:Real} to AbstractVector to allow mixed types and strings
-function write_data!(port::Int, name::String, val::Union{String, AbstractVector}, delta::Real=0.0)
+function write_data!(port::Int, name::String, val::Union{String, Vector{<:Real}}, delta::Real=0.0)
     global outpath, simtime, delay
     
     if isa(val, String)
         sleep(2 * delay)
+    elseif !isa(val, Vector)
+        println("write_data! must have Vector or String")
+        exit() 
     end
 
     filepath = joinpath(outpath * string(port), name)
     
     try
         open(filepath, "w") do outfile
-            if isa(val, AbstractVector)
-                # vcat safely merges the simtime with the rest of the array, regardless of types
-                data_to_write = vcat([simtime + delta], val)
-                # JSON.json outputs a string that Python's literal_eval can read natively
-                write(outfile, JSON.json(data_to_write))
+            if isa(val, Vector)
+                # data_to_write = [simtime + delta] + val
+                data_to_write = vcat([simtime + delta], Float64.(val))
+                # Write in Python list format: [x, y, z]
+                write(outfile, "[" * join(data_to_write, ", ") * "]")
                 global simtime += delta
             else
                 write(outfile, val)
@@ -176,10 +161,10 @@ function initval!(simtime_val::String)
     global simtime
     val = parse_array(simtime_val)
     if length(val) > 0
-        global simtime = Float64(val[1])
+        global simtime = val[1]
         return val[2:end]
     end
-    return []
+    return Float64[]
 end
 
 end # module
