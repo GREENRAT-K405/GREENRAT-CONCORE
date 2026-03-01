@@ -201,39 +201,46 @@ const _ZMQ_SOCKET_TYPES = Dict{String, Int}(
     "PAIR"   => ZMQ.PAIR,
 )
 
-function init_zmq_port(port_name::String, port_type::String, address::String, socket_type::Union{AbstractString, Integer})
-    if haskey(state.zmq_ports, port_name)
-        @info "ZMQ Port $port_name already initialized."
-        return
-    end
-    # Resolve string → integer constant (case-insensitive, mirrors Python getattr(zmq, ...))
-    resolved_type::Int = if socket_type isa AbstractString
-        key = uppercase(strip(socket_type))
-        if !haskey(_ZMQ_SOCKET_TYPES, key)
-            @error "Invalid ZMQ socket type string '$socket_type'. Valid types: $(join(keys(_ZMQ_SOCKET_TYPES), \", \"))"
-            return
-        end
-        _ZMQ_SOCKET_TYPES[key]
-    else
-        Int(socket_type)
-    end
+# Shared implementation used by both init_zmq_port dispatch methods
+function _init_zmq_port_impl(port_name::String, port_type::String, address::String, resolved_type::Int)
     try
         sock = ZMQ.Socket(state.zmq_ctx, resolved_type)
         ZMQ.set_rcvtimeo(sock, 2000)
         ZMQ.set_sndtimeo(sock, 2000)
         ZMQ.set_linger(sock, 0)
-        
         if port_type == "bind"
             ZMQ.bind(sock, address)
         else
             ZMQ.connect(sock, address)
         end
-        
         state.zmq_ports[port_name] = ZeroMQPort(sock, port_type, address)
         @info "Initialized ZMQ port: $port_name on $address"
     catch e
         @error "Error initializing ZMQ port $port_name on $address: $e"
     end
+end
+
+# Method 1: socket_type given as a string name e.g. "REQ", "PUB"
+function init_zmq_port(port_name::String, port_type::String, address::String, socket_type::AbstractString)
+    if haskey(state.zmq_ports, port_name)
+        @info "ZMQ Port $port_name already initialized."
+        return
+    end
+    key = uppercase(strip(socket_type))
+    if !haskey(_ZMQ_SOCKET_TYPES, key)
+        @error "Invalid ZMQ socket type string '$socket_type'. Valid types: $(join(keys(_ZMQ_SOCKET_TYPES), ", "))"
+        return
+    end
+    _init_zmq_port_impl(port_name, port_type, address, _ZMQ_SOCKET_TYPES[key])
+end
+
+# Method 2: socket_type given as a raw ZMQ integer constant
+function init_zmq_port(port_name::String, port_type::String, address::String, socket_type::Integer)
+    if haskey(state.zmq_ports, port_name)
+        @info "ZMQ Port $port_name already initialized."
+        return
+    end
+    _init_zmq_port_impl(port_name, port_type, address, Int(socket_type))
 end
 
 function terminate_zmq()
@@ -301,55 +308,69 @@ function initval(simtime_val_str::String)
     return []
 end
 
-function concore_read(port_identifier, name::String, initstr_val)
-    default_return = typeof(initstr_val) <: AbstractString ? safe_parse(initstr_val, initstr_val) : initstr_val
-    
-    # Case 1: ZMQ Port
-    if port_identifier isa AbstractString && haskey(state.zmq_ports, port_identifier)
-        port = state.zmq_ports[port_identifier]
-        msg = recv_json_with_retry(port)
-        if msg !== nothing
-            if msg isa AbstractVector && length(msg) > 0 && msg[1] isa Number
-                state.simtime = max(state.simtime, msg[1])
-                return msg[2:end]
-            end
-            return msg
-        else
-            return default_return
-        end
-    end
-    
-    # Case 2: File Port
-    port_num = try parse(Int, string(port_identifier)) catch; return default_return end
-    sleep(state.delay)
-    file_path = joinpath(state.inpath * string(port_num), name)
-    
-    ins = ""
-    for attempt in 1:6
-        if isfile(file_path)
-            try
-                ins = strip(Base.read(file_path, String))
-                if !isempty(ins) break end
-            catch
-            end
-        end
-        if attempt < 6
-            sleep(state.delay)
-        end
-        # Mirror Python: retrycount only increments on actual retries (after the first attempt)
-        if attempt > 1
-            state.retrycount += 1
-        end
-    end
-    
-    if isempty(ins)
-        state.s *= string(initstr_val)
+# Method 1: ZMQ port — port_id is a registered string key
+function concore_read(port_id::AbstractString, name::String, initstr_val)
+    default_return = initstr_val isa AbstractString ? safe_parse(initstr_val, initstr_val) : initstr_val
+    if !haskey(state.zmq_ports, port_id)
+        @error "No ZMQ port registered: $port_id"
         return default_return
     end
-    
-    state.s *= ins
+    msg = recv_json_with_retry(state.zmq_ports[port_id])
+    msg === nothing && return default_return
+    if msg isa AbstractVector && length(msg) > 0 && msg[1] isa Number
+        state.simtime = max(state.simtime, msg[1])
+        return msg[2:end]
+    end
+    return msg
+end
+
+# Method 2: File port — port_id is an integer port number
+function concore_read(port_id::Integer, name::String, initstr_val)
+    default_return = initstr_val isa AbstractString ? safe_parse(initstr_val, initstr_val) : initstr_val
+    sleep(state.delay)
+    file_path = joinpath(state.inpath * string(port_id), name)
+
+    ins = ""
+
+    if !isfile(file_path)
+        # Mirror Python FileNotFoundError branch exactly:
+        # set ins = str(initstr_val), update s, then fall through to the shared
+        # parse + simtime-strip block below — NOT an early return.
+        ins = string(initstr_val)
+        state.s *= ins
+    else
+        # File exists — attempt initial read
+        try
+            ins = strip(Base.read(file_path, String))
+        catch e
+            @error "Error reading $file_path: $e. Using default value."
+            return default_return
+        end
+
+        # Retry only if file was empty (mirrors Python: while len(ins) == 0 and attempts < max_retries)
+        attempts = 0
+        max_retries = 5
+        while isempty(ins) && attempts < max_retries
+            sleep(state.delay)
+            try
+                ins = strip(Base.read(file_path, String))
+            catch e
+                @warn "Retry $(attempts + 1): Error reading $file_path - $e"
+            end
+            attempts += 1
+            state.retrycount += 1
+        end
+
+        if isempty(ins)
+            @error "Max retries reached for $file_path, using default value."
+            return default_return
+        end
+
+        state.s *= ins
+    end
+
+    # Shared parse + simtime-strip block (reached for both file-found and file-not-found paths)
     parsed_val = safe_parse(ins, default_return)
-    
     if parsed_val isa AbstractVector && length(parsed_val) > 0 && parsed_val[1] isa Number
         state.simtime = max(state.simtime, parsed_val[1])
         return parsed_val[2:end]
@@ -357,25 +378,35 @@ function concore_read(port_identifier, name::String, initstr_val)
     return parsed_val
 end
 
-function concore_write(port_identifier, name::String, val, delta::Real=0)
-    # Issue #385 fix: Do not mutate internal simtime.
-    payload = val isa AbstractVector ? vcat([state.simtime + delta], val) : val
-    
-    # Case 1: ZMQ Port
-    if port_identifier isa AbstractString && haskey(state.zmq_ports, port_identifier)
-        port = state.zmq_ports[port_identifier]
-        send_json_with_retry(port, payload)
+# Method 1: ZMQ port — port_id is a registered string key
+function concore_write(port_id::AbstractString, name::String, val, delta::Real=0)
+    if !haskey(state.zmq_ports, port_id)
+        @error "No ZMQ port registered: $port_id"
         return
     end
-    
-    # Case 2: File Port
-    port_num = try parse(Int, string(port_identifier)) catch; return end
-    file_path = joinpath(state.outpath * string(port_num), name)
-    
+    # Issue #385 fix: Do not mutate internal simtime.
+    payload = val isa AbstractVector ? vcat([state.simtime + delta], val) : val
+    send_json_with_retry(state.zmq_ports[port_id], payload)
+end
+
+# Method 2: File port — port_id is an integer port number
+function concore_write(port_id::Integer, name::String, val, delta::Real=0)
+    file_path = joinpath(state.outpath * string(port_id), name)
+
+    # Mirror Python: reject non-list / non-str values early
+    # Python: elif not isinstance(val, list): logger.error(...); return
+    if !(val isa AbstractVector || val isa AbstractString)
+        @error "File write to $file_path must have list or str value, got $(typeof(val))"
+        return
+    end
+
     if val isa AbstractString
         sleep(2 * state.delay)
     end
-    
+
+    # Issue #385 fix: Do not mutate internal simtime.
+    payload = val isa AbstractVector ? vcat([state.simtime + delta], val) : val
+
     try
         mkpath(dirname(file_path))
         open(file_path, "w") do io
