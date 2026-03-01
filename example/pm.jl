@@ -1,5 +1,5 @@
 include("concore.jl")
-using .ConcoreModule
+using .Concore
 
 # Define the pm function
 function pm(u)
@@ -7,35 +7,37 @@ function pm(u)
 end
 
 # --- SETUP ---
-# Instantiate Concore struct with desired parameters
-c = Concore(delay=0.02, inpath="./in", outpath="./out")
+# Configure the global Concore state
+Concore.state.delay   = 0.02
+Concore.state.inpath  = "./in"
+Concore.state.outpath = "./out"
 
-maxtime = default_maxtime!(c, 150.0)
+maxtime = default_maxtime(150.0)
 
 init_simtime_u  = "[0.0, 0.0]"
 init_simtime_ym = "[0.0, 0.0]"
 
 # Initialize ym from the init string
-ym = ConcoreModule.safe_parse(init_simtime_ym, [0.0, 0.0])
+ym = Concore.safe_parse(init_simtime_ym, [0.0, 0.0])
 
 # --- MAIN LOOP ---
-while c.simtime < maxtime
+while Concore.state.simtime < maxtime
     local u
 
-    # unchanged(c) returns true when inputs have not changed
-    while unchanged(c)
-        # read_state!(c, port, name, initstr)
-        u = read_state!(c, 1, "u", init_simtime_u)
+    # unchanged() returns true when inputs have not changed
+    while unchanged()
+        # concore_read(port, name, initstr)
+        u = Float64.(concore_read(1, "u", init_simtime_u))
     end
 
     #####
     global ym = pm(u)
     #####
 
-    println("$(c.simtime). u=$(u) ym=$(ym)")
+    println("$(Concore.state.simtime). u=$(u) ym=$(ym)")
 
-    # write_state!(c, port, name, val, delta)
-    write_state!(c, 1, "ym", ym, 1.0)
+    # concore_write(port, name, val, delta)
+    concore_write(1, "ym", ym, 1.0)
 end
 
-println("retry=$(c.retrycount)")
+println("retry=$(Concore.state.retrycount)")
