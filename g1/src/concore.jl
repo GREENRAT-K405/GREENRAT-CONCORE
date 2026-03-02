@@ -389,39 +389,34 @@ function concore_write(port_id::AbstractString, name::String, val, delta::Real=0
     send_json_with_retry(state.zmq_ports[port_id], payload)
 end
 
-# Method 2a: File port — val is a list (prepend simtime, serialize as JSON-style array)
-function concore_write(port_id::Integer, name::String, val::AbstractVector, delta::Real=0)
-    file_path = joinpath(state.outpath * string(port_id), name)
-    # Issue #385 fix: Do not mutate internal simtime.
-    payload = vcat([state.simtime + delta], val)
-    try
-        mkpath(dirname(file_path))
-        open(file_path, "w") do io
-            Base.write(io, replace(JSON.json(payload), "\"" => "'"))
-        end
-    catch e
-        @error "Error writing to $file_path: $e"
-    end
-end
-
-# Method 2b: File port — val is a string (write as-is, with extra delay)
-function concore_write(port_id::Integer, name::String, val::AbstractString, delta::Real=0)
-    file_path = joinpath(state.outpath * string(port_id), name)
-    sleep(2 * state.delay)
-    try
-        mkpath(dirname(file_path))
-        open(file_path, "w") do io
-            Base.write(io, val)
-        end
-    catch e
-        @error "Error writing to $file_path: $e"
-    end
-end
-
-# Method 2c: File port — catch-all for unsupported val types (mirrors Python's early error return)
+# Method 2: File port — port_id is an integer port number
 function concore_write(port_id::Integer, name::String, val, delta::Real=0)
     file_path = joinpath(state.outpath * string(port_id), name)
-    @error "File write to $file_path must have list or str value, got $(typeof(val))"
+
+    # Mirror Python: reject non-list / non-str values early
+    # Python: elif not isinstance(val, list): logger.error(...); return
+    if !(val isa AbstractVector || val isa AbstractString)
+        @error "File write to $file_path must have list or str value, got $(typeof(val))"
+        return
+    end
+
+    if val isa AbstractString
+        sleep(2 * state.delay)
+    end
+
+    # Issue #385 fix: Do not mutate internal simtime.
+    payload = val isa AbstractVector ? vcat([state.simtime + delta], val) : val
+
+    try
+        mkpath(dirname(file_path))
+        open(file_path, "w") do io
+            # Write JSON-like representation for arrays, otherwise plain string
+            out_str = payload isa AbstractVector ? replace(JSON.json(payload), "\"" => "'") : string(payload)
+            Base.write(io, out_str)
+        end
+    catch e
+        @error "Error writing to $file_path: $e"
+    end
 end
 
 end # module
