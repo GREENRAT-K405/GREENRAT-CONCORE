@@ -607,16 +607,16 @@ if 'v' in required_langs:
 
 if 'jl' in required_langs:
     try:
-        if concoretype=="docker":
-            fsource = open(CONCOREPATH+"/concoredocker.jl")
-        else:
-            fsource = open(CONCOREPATH+"/concore.jl")
-    except (FileNotFoundError, IOError):
-        print(CONCOREPATH+" is not correct path to concore (missing Julia files)")
+        concore_jl_dir = os.path.join(outdir, "src", "Concore")
+        os.makedirs(concore_jl_dir, exist_ok=True)
+        # Always copy the new structured library
+        shutil.copy2(os.path.join(CONCOREPATH, "Project.toml"), os.path.join(concore_jl_dir, "Project.toml"))
+        if os.path.exists(os.path.join(CONCOREPATH, "Manifest.toml")):
+            shutil.copy2(os.path.join(CONCOREPATH, "Manifest.toml"), os.path.join(concore_jl_dir, "Manifest.toml"))
+        shutil.copytree(os.path.join(CONCOREPATH, "src"), os.path.join(concore_jl_dir, "src"), dirs_exist_ok=True)
+    except Exception as e:
+        print(f"{CONCOREPATH} is not correct path to concore (missing Julia files): {e}")
         quit()
-    with open(outdir+"/src/concore.jl","w") as fcopy:
-        fcopy.write(fsource.read())
-    fsource.close()
 
 if 'm' in required_langs:
     try:
@@ -766,7 +766,7 @@ if (concoretype=="docker"):
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
                     if langext=="jl":
-                        fcopy.write('CMD ["julia", "-i", "'+sourcecode+'"]\n')
+                        fcopy.write('CMD ["julia", "--project=Concore", "-i", "'+sourcecode+'"]\n')
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
@@ -793,7 +793,7 @@ if (concoretype=="docker"):
             elif langext == "v": #6/25/21
                 fbuild.write("cp ../src/concore.v .\n")
             elif langext == "jl":
-                fbuild.write("cp ../src/concore.jl .\n")
+                fbuild.write("cp -r ../src/Concore .\n")
             if langext == "m":
                 fbuild.write("cp ../src/concore_*.m .\n")
                 fbuild.write("cp ../src/import_concore.m .\n")
@@ -1033,7 +1033,8 @@ for node in nodes_dict:
             elif langext == "v": # 6/25/21
                 fbuild.write("copy .\\src\\concore.v .\\" + containername + "\\concore.v\n")
             elif langext == "jl":
-                fbuild.write("copy .\\src\\concore.jl .\\" + containername + "\\concore.jl\n")
+                fbuild.write("xcopy /S /I /Y .\\src\\Concore .\\" + containername + "\\Concore\n")
+                fbuild.write(JULIAWIN + " --project=.\\" + containername + "\\Concore -e \"using Pkg; Pkg.instantiate()\"\n")
             elif langext == "m":   #  4/2/21
                 fbuild.write("copy .\\src\\concore_*.m .\\" + containername + "\\\n")
                 fbuild.write("copy .\\src\\import_concore.m .\\" + containername + "\\\n")
@@ -1051,7 +1052,8 @@ for node in nodes_dict:
             elif langext == "v":
                 fbuild.write("cp ./src/concore.v ./"+containername+"/concore.v\n")
             elif langext == "jl":
-                fbuild.write("cp ./src/concore.jl ./"+containername+"/concore.jl\n")
+                fbuild.write("cp -r ./src/Concore ./"+containername+"/Concore\n")
+                fbuild.write(JULIAEXE + " --project=./" + containername + "/Concore -e 'using Pkg; Pkg.instantiate()'\n")
             elif langext == "m":  # 4/2/21
                 fbuild.write("cp ./src/concore_*.m ./"+containername+"/\n")
                 fbuild.write("cp ./src/import_concore.m ./"+containername+"/\n")
@@ -1143,8 +1145,8 @@ for node in nodes_dict:
               fdebug.write('start /D '+q_container+' cmd /K vvp a.out\n')
               #fdebug.write('start /D '+containername+' cmd /K "'+CPPWIN+' '+sourcecode+'|a"\n')
           elif langext=="jl":
-              frun.write('start /B /D '+q_container+" "+JULIAWIN+" "+q_source+" >"+q_container+"\\concoreout.txt\n")
-              fdebug.write('start /D '+q_container+" cmd /K "+JULIAWIN+" "+q_source+"\n")
+              frun.write('start /B /D '+q_container+" "+JULIAWIN+" --project=Concore "+q_source+" >"+q_container+"\\concoreout.txt\n")
+              fdebug.write('start /D '+q_container+" cmd /K "+JULIAWIN+" --project=Concore "+q_source+"\n")
           elif langext=="m":  #3/23/21
               # Use q_source in Windows commands to ensure quoting consistency
               if M_IS_OCTAVE:   
@@ -1187,13 +1189,13 @@ for node in nodes_dict:
                     fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + VEXE + ' ' + safe_source + '; vvp a.out\\"" \n')
 
             elif langext == "jl":
-                frun.write('(cd ' + safe_container + '; ' + JULIAEXE + ' ' + safe_source + ' >concoreout.txt & echo $! >concorepid) &\n')
+                frun.write('(cd ' + safe_container + '; ' + JULIAEXE + ' --project=Concore ' + safe_source + ' >concoreout.txt & echo $! >concorepid) &\n')
                 if ubuntu:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JULIAEXE + ' ' + safe_source + '; bash" &\n')
+                    fdebug.write('xterm -e bash -c "cd \\"$concorewd/' + safe_container + '\\"; ' + JULIAEXE + ' --project=Concore ' + safe_source + '; bash" &\n')
                 else:
                     fdebug.write('concorewd="$(pwd)"\n')
-                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + JULIAEXE + ' ' + safe_source + '\\"" \n')
+                    fdebug.write('osascript -e "tell application \\"Terminal\\" to do script \\"cd \\\\\\"$concorewd/' + safe_container + '\\\\\\"; ' + JULIAEXE + ' --project=Concore ' + safe_source + '\\"" \n')
 
             elif langext == "sh":   # 5/19/21
                 # FIX: Escape MCRPATH to prevent shell injection

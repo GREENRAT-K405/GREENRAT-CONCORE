@@ -1,5 +1,6 @@
 FROM julia:1.9
-RUN julia -e 'using Pkg; Pkg.add("JSON")'
 COPY . /src 
+WORKDIR /src/Concore
+RUN julia --project=. -e 'using Pkg; Pkg.instantiate()'
 WORKDIR /src
 # mkconcore.py will append the CMD dynamically

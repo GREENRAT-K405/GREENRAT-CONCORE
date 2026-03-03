@@ -1,5 +1,4 @@
-include("concore.jl")
-using .Concore
+using Concore
 
 # Define the pm function
 function pm(u)
