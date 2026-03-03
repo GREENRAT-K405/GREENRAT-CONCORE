@@ -29,10 +29,10 @@ if hasattr(sys, 'getwindowsversion'):
     with open("concorekill.bat","w") as fpid:
         fpid.write("taskkill /F /PID "+str(os.getpid())+"\n")
 
-ZeroMQPort = concore_base.ZeroMQPort
-convert_numpy_to_python = concore_base.convert_numpy_to_python
-safe_literal_eval = concore_base.safe_literal_eval
-parse_params = concore_base.parse_params
+ZeroMQPort = cp.ZeroMQPort
+convert_numpy_to_python = cp.convert_numpy_to_python
+safe_literal_eval = cp.safe_literal_eval
+parse_params = cp.parse_params
 
 # Global variables
 zmq_ports = {}
@@ -64,11 +64,11 @@ _mod = sys.modules[__name__]
 # ZeroMQ Communication Wrapper
 # ===================================================================
 def init_zmq_port(port_name, port_type, address, socket_type_str):
-    concore_base.init_zmq_port(_mod, port_name, port_type, address, socket_type_str)
+    cp.init_zmq_port(_mod, port_name, port_type, address, socket_type_str)
 
 def terminate_zmq():
     """Clean up all ZMQ sockets and contexts before exit."""
-    concore_base.terminate_zmq(_mod)
+    cp.terminate_zmq(_mod)
 
 def signal_handler(sig, frame):
     """Handle interrupt signals gracefully."""
@@ -77,7 +77,7 @@ def signal_handler(sig, frame):
         atexit.unregister(terminate_zmq)
     except Exception:
         pass
-    concore_base.terminate_zmq(_mod)
+    cp.terminate_zmq(_mod)
     sys.exit(0)
 
 # Register cleanup handlers
@@ -86,7 +86,7 @@ signal.signal(signal.SIGINT, signal_handler)   # Handle Ctrl+C
 if not hasattr(sys, 'getwindowsversion'):
     signal.signal(signal.SIGTERM, signal_handler)  # Handle termination (Unix only)
 
-params = concore_base.load_params(concore_params_file)
+params = cp.load_params(concore_params_file)
 
 #9/30/22
 def tryparam(n, i):
@@ -106,7 +106,7 @@ default_maxtime(100)
 
 def unchanged():
     """Check if global string `s` is unchanged since last call."""
-    return concore_base.unchanged(_mod)
+    return cp.unchanged(_mod)
 
 # ===================================================================
 # I/O Handling (File + ZMQ)
@@ -135,13 +135,13 @@ def read(port_identifier, name, initstr_val):
         call.
     """
     global last_read_status
-    result = concore_base.read(_mod, port_identifier, name, initstr_val)
-    last_read_status = concore_base.last_read_status
+    result = cp.read(_mod, port_identifier, name, initstr_val)
+    last_read_status = cp.last_read_status
     return result
 
 
 def write(port_identifier, name, val, delta=0):
-    concore_base.write(_mod, port_identifier, name, val, delta)
+    cp.write(_mod, port_identifier, name, val, delta)
 
 def initval(simtime_val_str): 
-    return concore_base.initval(_mod, simtime_val_str)
+    return cp.initval(_mod, simtime_val_str)
