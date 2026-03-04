@@ -9,7 +9,7 @@
           <y:Geometry height="50" width="136" x="587.1578118466556" y="100.44232926537836"/>
           <y:Fill color="#ffcc00" opacity="1"/>
           <y:BorderStyle color="#000" width="1"/>
-          <y:NodeLabel>PZ:pmpymax.py</y:NodeLabel>
+          <y:NodeLabel>PZ:pmpymax.jl</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
@@ -20,7 +20,7 @@
           <y:Geometry height="50" width="122" x="342.2237964505762" y="209.3201270682564"/>
           <y:Fill color="#ffcc00" opacity="1"/>
           <y:BorderStyle color="#000" width="1"/>
-          <y:NodeLabel>CZ:cpymax.py</y:NodeLabel>
+          <y:NodeLabel>CZ:cpymax.jl</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
@@ -31,7 +31,7 @@
           <y:Geometry height="50" width="150" x="601" y="204.77362282623312"/>
           <y:Fill color="#ffcc00" opacity="1"/>
           <y:BorderStyle color="#000" width="1"/>
-          <y:NodeLabel>F1:funcall_zmq.py</y:NodeLabel>
+          <y:NodeLabel>F1:funcall_zmq.jl</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>
@@ -42,7 +42,7 @@
           <y:Geometry height="50" width="161" x="336.01863708558665" y="100.93769244530341"/>
           <y:Fill color="#ffcc00" opacity="1"/>
           <y:BorderStyle color="#000" width="1"/>
-          <y:NodeLabel>F2:funbody_zmq.py</y:NodeLabel>
+          <y:NodeLabel>F2:funbody_zmq.jl</y:NodeLabel>
           <y:Shape type="rectangle"/>
         </y:ShapeNode>
       </data>

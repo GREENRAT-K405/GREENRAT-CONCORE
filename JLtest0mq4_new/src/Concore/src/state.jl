@@ -84,3 +84,14 @@ const state = ConcoreState(
     100.0  # mirrors Python's default_maxtime(100)
 )
 
+# Write concorekill.bat on Windows so batch run scripts can terminate this process by PID
+# Mirrors Python: if hasattr(sys, 'getwindowsversion'): open("concorekill.bat","w").write(...)
+if Sys.iswindows()
+    try
+        open("concorekill.bat", "w") do f
+            write(f, "taskkill /F /PID $(getpid())\n")
+        end
+    catch e
+        @warn "Could not write concorekill.bat: $e"
+    end
+end

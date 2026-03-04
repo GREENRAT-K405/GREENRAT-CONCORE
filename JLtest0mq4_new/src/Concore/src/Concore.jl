@@ -56,21 +56,8 @@ include("io.jl")       # concore_read, concore_write, unchanged, initval
 # ---------------------------------------------------------------
 # Module initialisation (runs once when `using Concore` is called)
 # ---------------------------------------------------------------
-function __init__()
-    if Sys.iswindows()
-        try
-            open("concorekill.bat", "w") do f
-                write(f, "taskkill /F /PID $(getpid())\n")
-            end
-        catch e
-            @warn "Could not write concorekill.bat: $e"
-        end
-    end
-
-    load_params!()          # populate state.params from concore.params file
-    load_ports!()           # populate state.iport / state.oport
-    default_maxtime(100.0)  # read maxtime from file (default 100)
-    _init_shm_from_ports!() # set up SHM segments if numeric port keys are present
-end
+load_params!()          # populate state.params from concore.params file
+load_ports!()           # populate state.iport / state.oport
+_init_shm_from_ports!() # set up SHM segments if numeric port keys are present
 
 end # module Concore
