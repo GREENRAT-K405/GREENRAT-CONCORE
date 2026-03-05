@@ -1,0 +1,5 @@
+#!/bin/bash
+docker run --network=zmq_net --name=PZ -v Y2:/out1 -v U2:/in1:ro docker-pmpymax&
+docker run --network=zmq_net --name=CZ -v cvU:/out1 -v cvY:/in1:ro docker-cpymax&
+docker run --network=zmq_net --name=F1 -v cvY:/out1 -v cvU:/in1:ro docker-funcall&
+docker run --network=zmq_net --name=F2 -v U2:/out1 -v Y2:/in1:ro docker-funbody&

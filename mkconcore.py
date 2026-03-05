@@ -610,10 +610,11 @@ if 'jl' in required_langs:
         concore_jl_dir = os.path.join(outdir, "src", "Concore")
         os.makedirs(concore_jl_dir, exist_ok=True)
         # Always copy the new structured library
-        shutil.copy2(os.path.join(CONCOREPATH, "Project.toml"), os.path.join(concore_jl_dir, "Project.toml"))
-        if os.path.exists(os.path.join(CONCOREPATH, "Manifest.toml")):
-            shutil.copy2(os.path.join(CONCOREPATH, "Manifest.toml"), os.path.join(concore_jl_dir, "Manifest.toml"))
-        shutil.copytree(os.path.join(CONCOREPATH, "src"), os.path.join(concore_jl_dir, "src"), dirs_exist_ok=True)
+        concore_jl_src_dir = os.path.join(CONCOREPATH, "lib", "julia", "Concore")
+        shutil.copy2(os.path.join(concore_jl_src_dir, "Project.toml"), os.path.join(concore_jl_dir, "Project.toml"))
+        if os.path.exists(os.path.join(concore_jl_src_dir, "Manifest.toml")):
+            shutil.copy2(os.path.join(concore_jl_src_dir, "Manifest.toml"), os.path.join(concore_jl_dir, "Manifest.toml"))
+        shutil.copytree(os.path.join(concore_jl_src_dir, "src"), os.path.join(concore_jl_dir, "src"), dirs_exist_ok=True)
     except Exception as e:
         print(f"{CONCOREPATH} is not correct path to concore (missing Julia files): {e}")
         quit()
@@ -762,6 +763,10 @@ if (concoretype=="docker"):
                 if dockerfile_parent:
                     os.makedirs(dockerfile_parent, exist_ok=True)
                 with open(dockerfile_path,"w") as fcopy:
+                    # Ensure source_content ends with a newline so CMD is not
+                    # fused onto the same line as a trailing comment in the template.
+                    if not source_content.endswith("\n"):
+                        source_content += "\n"
                     fcopy.write(source_content)
                     if langext=="py":
                         fcopy.write('CMD ["python", "-i", "'+sourcecode+'"]\n')
@@ -770,7 +775,7 @@ if (concoretype=="docker"):
                     if langext=="m":
                         fcopy.write('CMD ["octave", "-qf", "--eval", "run('+"'"+sourcecode+"'"+')"]\n') #3/28/21
                     if langext=="sh":
-                        fcopy.write('CMD ["./'+sourcecode+'" ,"/opt/mcr/v910"]')  # 5/19/21
+                        fcopy.write('CMD ["./'+sourcecode+'" ,"/opt/mcr/v910"]\n')  # 5/19/21
                     #["./run_pmmat.sh", "/opt/mcr/MATLAB/MATLAB_Runtime/v910"]
                     if langext=="v":
                         fcopy.write('RUN iverilog ./'+sourcecode+'\n')  # 7/02/21

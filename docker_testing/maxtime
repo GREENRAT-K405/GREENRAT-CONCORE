@@ -1,0 +1,16 @@
+#!/bin/bash
+echo "$1" >concore.maxtime
+echo "FROM alpine:3.8" > Dockerfile
+docker build -t docker-concore .
+docker run --name=concore -v Y2:/Y2 -v cvU:/U -v cvY:/Y -v U2:/U2 docker-concore >/dev/null &
+sleep 3
+echo "copying concore.maxtime=$1"
+docker cp concore.maxtime concore:/Y2/concore.maxtime
+docker cp concore.maxtime concore:/U/concore.maxtime
+docker cp concore.maxtime concore:/Y/concore.maxtime
+docker cp concore.maxtime concore:/U2/concore.maxtime
+docker stop concore 
+docker rm concore
+docker rmi docker-concore
+rm Dockerfile
+rm concore.maxtime

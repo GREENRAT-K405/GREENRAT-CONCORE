@@ -28,35 +28,34 @@ end
 ```
 
 See the individual function docstrings for full API documentation.
+
+# Note on Docker
+When building for Docker, mkconcore.py copies `concoredocker.jl` in place of
+this file. That frontend declares the same `module Concore` but with a
+Docker-aware `__init__()` (absolute mount paths /in /out, container logging,
+Linux signal handling). User scripts are never modified.
 """
 module Concore
 
-using ZMQ
-using JSON
+# ---------------------------------------------------------------
+# All shared imports, source files, and exports
+# (identical between this frontend and concoredocker.jl)
+# ---------------------------------------------------------------
+include("concore_base.jl")
 
 # ---------------------------------------------------------------
-# Public API exports
-# ---------------------------------------------------------------
-export concore_read, concore_write,
-       unchanged, initval,
-       init_zmq_port, terminate_zmq,
-       default_maxtime, tryparam,
-       iport, oport
-
-# ---------------------------------------------------------------
-# Source files (order matters: later files depend on earlier ones)
-# ---------------------------------------------------------------
-include("state.jl")    # Structs + global state instances
-include("params.jl")   # safe_parse, parse_params, load_params!, tryparam, default_maxtime
-include("ports.jl")    # load_ports!, iport(), oport()
-include("zmq.jl")      # init_zmq_port, terminate_zmq, send/recv helpers, signal handling
-include("shm.jl")      # Shared memory (Linux only): create/get/cleanup + read_SM/write_SM
-include("io.jl")       # concore_read, concore_write, unchanged, initval
-
-# ---------------------------------------------------------------
-# Module initialisation (runs once when `using Concore` is called)
+# Local (POSIX / Windows) module initialisation
+# Runs once when `using Concore` is called on a local machine.
+# Does NOT contain any Docker logic — that lives in concoredocker.jl.
 # ---------------------------------------------------------------
 function __init__()
+    # Refresh the ZMQ context at runtime! If the library was precompiled,
+    # the ZMQ.Context() created in state.jl points to a destroyed C memory address,
+    # which causes `ZMQ: Bad address` whenever we try to bind/connect.
+    state.zmq_ctx = ZMQ.Context()
+
+    # On Windows, write a helper batch file so the stop script
+    # can kill this process by PID (mirrors concore.py behaviour).
     if Sys.iswindows()
         try
             open("concorekill.bat", "w") do f
@@ -69,7 +68,7 @@ function __init__()
 
     load_params!()          # populate state.params from concore.params file
     load_ports!()           # populate state.iport / state.oport
-    default_maxtime(100.0)  # read maxtime from file (default 100)
+    default_maxtime(100.0)  # read maxtime from file (default 100 s)
     _init_shm_from_ports!() # set up SHM segments if numeric port keys are present
 end
 

@@ -1,0 +1,16 @@
+#!/bin/bash
+echo "$1" >concore.params
+echo "FROM alpine:3.8" > Dockerfile
+sudo docker build -t docker-concore .
+sudo docker run --name=concore -v Y2:/Y2 -v U:/U -v Y:/Y -v U2:/U2 docker-concore >/dev/null &
+sleep 3
+echo "copying concore.params=$1"
+sudo docker cp concore.params concore:/Y2/concore.params
+sudo docker cp concore.params concore:/U/concore.params
+sudo docker cp concore.params concore:/Y/concore.params
+sudo docker cp concore.params concore:/U2/concore.params
+sudo docker stop concore 
+sudo docker rm concore
+sudo docker rmi docker-concore
+rm Dockerfile
+rm concore.params

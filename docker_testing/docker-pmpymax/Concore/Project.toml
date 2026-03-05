@@ -1,0 +1,20 @@
+name = "Concore"
+uuid = "6904017b-46a9-4cc4-8e82-7414c53fb4ac"
+version = "0.1.0"
+authors = ["GSOC Contributors"]
+
+[deps]
+JSON    = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+ZMQ     = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
+
+[compat]
+julia = "1.12"
+JSON  = "0.21"
+ZMQ   = "1"
+
+[extras]
+Test = "8dfed614-e22c-358a-9e5a-6d7d1f0e1c75"
+
+[targets]
+test = ["Test"]

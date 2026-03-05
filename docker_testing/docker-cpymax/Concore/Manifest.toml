@@ -2,14 +2,14 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "f85698200a1051fec89af2b1904b02c6e08a65ea"
+project_hash = "b348ae9722a10d1ff08b55a918f298e439fccb66"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
 
 [[deps.Concore]]
-deps = ["JSON", "ZMQ"]
+deps = ["JSON", "Logging", "ZMQ"]
 path = "."
 uuid = "6904017b-46a9-4cc4-8e82-7414c53fb4ac"
 version = "0.1.0"
@@ -37,6 +37,10 @@ version = "0.21.4"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+version = "1.11.0"
+
+[[deps.Logging]]
+uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
 [[deps.Mmap]]
