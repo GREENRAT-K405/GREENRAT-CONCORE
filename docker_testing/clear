@@ -1,5 +1,0 @@
-#!/bin/bash
-docker volume rm Y2
-docker volume rm U
-docker volume rm Y
-docker volume rm U2

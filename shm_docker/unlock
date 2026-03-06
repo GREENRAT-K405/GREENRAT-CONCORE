@@ -1,0 +1,12 @@
+#!/bin/bash
+echo "FROM alpine:3.8" > Dockerfile
+sudo docker build -t docker-concore .
+sudo docker run --name=concore -v 1_CU:/1_CU -v 2_PYM:/2_PYM docker-concore >/dev/null &
+sleep 1
+echo "copying concore.apikey"
+sudo docker cp ~/concore.apikey concore:/1_CU/concore.apikey
+sudo docker cp ~/concore.apikey concore:/2_PYM/concore.apikey
+sudo docker stop concore 
+sudo docker rm concore
+sudo docker rmi docker-concore
+rm Dockerfile

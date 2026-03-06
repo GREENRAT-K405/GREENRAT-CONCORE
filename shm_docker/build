@@ -1,0 +1,19 @@
+#!/bin/bash
+mkdir docker-controller
+cd docker-controller
+cp ../src/Dockerfile.controller Dockerfile
+cp ../src/controller.jl .
+cp -r ../src/Concore .
+cp ../src/controller.iport concore.iport
+cp ../src/controller.oport concore.oport
+docker build -t docker-controller .
+cd ..
+mkdir docker-pm
+cd docker-pm
+cp ../src/Dockerfile.pm Dockerfile
+cp ../src/pm.jl .
+cp -r ../src/Concore .
+cp ../src/pm.iport concore.iport
+cp ../src/pm.oport concore.oport
+docker build -t docker-pm .
+cd ..

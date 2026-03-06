@@ -1,0 +1,10 @@
+#!/bin/bash
+docker stop CZ
+docker rm CZ
+docker stop PZ
+docker rm PZ
+
+# Clear out orphaned shared memory from the host IPC namespace
+# (in case the containers were force-killed and didn't clean up)
+echo "Cleaning up lingering shared memory segments..."
+docker run --rm --ipc=host docker-pm sh -c "for id in \$(awk 'NR>1 {print \$2}' /proc/sysvipc/shm); do ipcrm -m \$id 2>/dev/null; done || true"

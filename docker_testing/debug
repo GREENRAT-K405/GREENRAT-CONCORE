@@ -1,5 +1,0 @@
-#!/bin/bash
-sudo docker run -it --name=PZ -v Y2:/out1 -v U2:/in1:ro docker-pmpymax&
-sudo docker run -it --name=CZ -v U:/out1 -v Y:/in1:ro docker-cpymax&
-sudo docker run -it --name=F1 -v Y:/out1 -v U:/in1:ro docker-funcall&
-sudo docker run -it --name=F2 -v U2:/out1 -v Y2:/in1:ro docker-funbody&

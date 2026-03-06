@@ -1,0 +1,3 @@
+#!/bin/bash
+docker volume rm 1_CU
+docker volume rm 2_PYM

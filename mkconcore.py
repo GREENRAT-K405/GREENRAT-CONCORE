@@ -615,6 +615,16 @@ if 'jl' in required_langs:
         if os.path.exists(os.path.join(concore_jl_src_dir, "Manifest.toml")):
             shutil.copy2(os.path.join(concore_jl_src_dir, "Manifest.toml"), os.path.join(concore_jl_dir, "Manifest.toml"))
         shutil.copytree(os.path.join(concore_jl_src_dir, "src"), os.path.join(concore_jl_dir, "src"), dirs_exist_ok=True)
+        # For Docker builds, replace the local Concore.jl frontend with the
+        # Docker-aware concoredocker.jl so that __init__() sets absolute
+        # mount paths (/in, /out) instead of relative (./in, ./out).
+        # Mirrors the Python logic: concoredocker.py replaces concore.py.
+        if concoretype == "docker":
+            docker_frontend = os.path.join(concore_jl_dir, "src", "concoredocker.jl")
+            local_frontend  = os.path.join(concore_jl_dir, "src", "Concore.jl")
+            if os.path.exists(docker_frontend):
+                shutil.copy2(docker_frontend, local_frontend)
+                logging.info("Replaced Concore.jl with concoredocker.jl for Docker build")
     except Exception as e:
         print(f"{CONCOREPATH} is not correct path to concore (missing Julia files): {e}")
         quit()
