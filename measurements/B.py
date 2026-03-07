@@ -68,7 +68,7 @@ while True:
     messages_routed += 1
 
     # 5. Check termination condition
-    if processed_value >= 100:
+    if processed_value >= 10000:
         break
 
 # --- Finalize and Report Measurements ---

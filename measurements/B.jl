@@ -1,0 +1,73 @@
+# B.jl (Broker with Measurements)
+# Julia port of B.py
+# Receives requests from A, forwards to C, relays replies back to A.
+import Concore: init_zmq_port, concore_read, concore_write, terminate_zmq, state
+
+# --- Fallback port definitions (normally injected by copy_with_port_portname.py) ---
+if !@isdefined(PORT_NAME_F1_F2)
+    const PORT_NAME_F1_F2 = "F1_F2"
+    println("Warning: Port variables not injected. Running in standalone mode with default values.")
+    println("         For full study behavior, run via study generation (makestudy).")
+end
+if !@isdefined(PORT_F1_F2)
+    const PORT_F1_F2 = "5555"
+end
+if !@isdefined(PORT_NAME_F2_F3)
+    const PORT_NAME_F2_F3 = "F2_F3"
+end
+if !@isdefined(PORT_F2_F3)
+    const PORT_F2_F3 = "5556"
+end
+
+function main()
+    # --- ZMQ Initialization ---
+    # REP socket: binds and waits for requests from Node A
+    init_zmq_port(PORT_NAME_F1_F2, "bind", "tcp://*:" * PORT_F1_F2, "REP")
+    # REQ socket: connects to Node C
+    init_zmq_port(PORT_NAME_F2_F3, "connect", "tcp://localhost:" * PORT_F2_F3, "REQ")
+
+    println("Node B broker started. Waiting for requests...")
+
+    # --- Measurement Initialization ---
+    start_time      = time()
+    messages_routed = 0
+
+    while true
+        # 1. Wait for a request from Node A
+        value_from_a   = concore_read(PORT_NAME_F1_F2, "value", [0.0])
+        received_value = value_from_a[1]   # Julia is 1-indexed
+        println("Node B: Received $(round(received_value, digits=2)) from Node A. Forwarding to C...")
+
+        # 2. Send the received value as a new request to Node C
+        concore_write(PORT_NAME_F2_F3, "value", [received_value])
+
+        # 3. Wait for the reply from Node C
+        value_from_c    = concore_read(PORT_NAME_F2_F3, "value", [0.0])
+        processed_value = value_from_c[1]
+        println("Node B: Received $(round(processed_value, digits=2)) from Node C. Replying to A...")
+
+        # 4. Send the processed value back as a reply to Node A
+        concore_write(PORT_NAME_F1_F2, "value", [processed_value])
+        messages_routed += 1
+
+        # 5. Check termination condition
+        if processed_value >= 10000.0
+            break
+        end
+    end
+
+    # --- Finalize and Report Measurements ---
+    end_time = time()
+    duration = end_time - start_time
+
+    println("\n" * "="^30)
+    println("--- NODE B: RESULTS ---")
+    println("Total messages routed: $messages_routed")
+    println("Total execution time:  $(round(duration, digits=4)) seconds")
+    println("="^30)
+
+    println("\nNode B: Terminating.")
+    terminate_zmq()
+end
+
+main()

@@ -44,10 +44,15 @@ overall_start_time = time.monotonic()
 loop_start_time = 0
 
 current_value = 0
-max_value = 100
+max_value = 10000
+
+# Warmup 
+for _ in range(5):
+    concore.write(PORT_NAME_F1_F2, "value", [current_value])
+    concore.read(PORT_NAME_F1_F2, "value", [0.0])
 
 while current_value < max_value:
-    loop_start_time = time.monotonic() # Start timer for round-trip latency
+    loop_start_time = time.perf_counter() # High res timer
     print(f"Node A: Sending value {current_value:.2f} to Node B.")
     
     # 1. Send the current value as a request to the pipeline
@@ -57,7 +62,7 @@ while current_value < max_value:
     # 2. Wait for the final, processed value in reply
     received_data = concore.read(PORT_NAME_F1_F2, "value", [0.0])
     
-    loop_end_time = time.monotonic()
+    loop_end_time = time.perf_counter()
     latency_ms = (loop_end_time - loop_start_time) * 1000
 
     # Update metrics

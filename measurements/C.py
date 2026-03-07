@@ -58,7 +58,7 @@ while True:
     concore.write(PORT_NAME_F2_F3, "value", [new_value])
     
     # 4. Check the value to know when to shut down gracefully.
-    if new_value >= 100:
+    if new_value >= 10000:
         break
 
 # --- Finalize and Report Measurements ---
