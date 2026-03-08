@@ -498,7 +498,10 @@ if node_edge_params:
 volswr = len(nodes_dict)*['']
 i = 0
 for edges in edges_dict:
-  volswr[nodes_num[edges_dict[edges][0]]] += ' -v '+str(edges)+OUTDIRNAME+str(volswr[nodes_num[edges_dict[edges][0]]].count('-v')+1)
+  # Prefix volume names with 'vol_' to prevent Docker Desktop on Windows
+  # from misinterpreting single-letter edge labels (e.g. 'Y', 'U') as drive letters.
+  safe_vol = 'vol_'+str(edges)
+  volswr[nodes_num[edges_dict[edges][0]]] += ' -v '+safe_vol+OUTDIRNAME+str(volswr[nodes_num[edges_dict[edges][0]]].count('-v')+1)
   i += 1
 
 
@@ -508,8 +511,9 @@ volsro = len(nodes_dict)*['']
 i = 0
 for edges in edges_dict:
    for dest in (edges_dict[edges])[1]:
+     safe_vol = 'vol_'+str(edges)
      incount = volsro[nodes_num[dest]].count('-v')
-     volIndirPair = str(edges)+INDIRNAME+str(incount+1)
+     volIndirPair = safe_vol+INDIRNAME+str(incount+1)
      indir[nodes_num[dest]] = indir[nodes_num[dest]] + [volIndirPair]
      volsro[nodes_num[dest]] += ' -v '+volIndirPair+':ro'
      i += 1
@@ -833,12 +837,12 @@ if (concoretype=="docker"):
             if sourcecode.find(".")==-1:
                 logging.debug(f"Generating Docker run command: {DOCKEREXE} run --name={containername+volswr[i]+volsro[i]} {DOCKEREPO}/docker- {sourcecode}")
                 # Use safe_container
-                frun.write(DOCKEREXE+' run --name='+safe_container+volswr[i]+volsro[i]+" "+DOCKEREPO+"/docker-"+shlex.quote(sourcecode)+"&\n")
+                frun.write(DOCKEREXE+' run --ipc=host --network=host --name='+safe_container+volswr[i]+volsro[i]+" "+DOCKEREPO+"/docker-"+shlex.quote(sourcecode)+"&\n")
             else:    
                 dockername,langext = sourcecode.rsplit(".", 1)
                 logging.debug(f"Generating Docker run command for {dockername}: {DOCKEREXE} run --name={containername+volswr[i]+volsro[i]} docker-{dockername}")
                 # Use safe_container
-                frun.write(DOCKEREXE+' run --name='+safe_container+volswr[i]+volsro[i]+" docker-"+shlex.quote(dockername)+"&\n")
+                frun.write(DOCKEREXE+' run --ipc=host --network=host --name='+safe_container+volswr[i]+volsro[i]+" docker-"+shlex.quote(dockername)+"&\n")
         i=i+1
     frun.close()
 
@@ -1353,3 +1357,8 @@ if concoretype != "windows":
     os.chmod(outdir+"/maxtime",stat.S_IRWXU) 
     os.chmod(outdir+"/params",stat.S_IRWXU) 
     os.chmod(outdir+"/unlock",stat.S_IRWXU)
+
+elif langext == "jl":
+    src_path = CONCOREPATH + "/Dockerfile.jl"
+    # ...
+    fcopy.write('CMD ["julia", "--project=Concore", "-i", "'+sourcecode+'"]\n')

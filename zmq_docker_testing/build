@@ -1,0 +1,39 @@
+#!/bin/bash
+mkdir docker-pmjlmax
+cd docker-pmjlmax
+cp ../src/Dockerfile.pmjlmax Dockerfile
+cp ../src/pmjlmax.jl .
+cp -r ../src/Concore .
+cp ../src/pmjlmax.iport concore.iport
+cp ../src/pmjlmax.oport concore.oport
+docker build -t docker-pmjlmax .
+cd ..
+mkdir docker-cjlmax
+cd docker-cjlmax
+cp ../src/Dockerfile.cjlmax Dockerfile
+cp ../src/cjlmax.jl .
+cp -r ../src/Concore .
+cp ../src/cjlmax.iport concore.iport
+cp ../src/cjlmax.oport concore.oport
+docker build -t docker-cjlmax .
+cd ..
+mkdir docker-funcall_zmq
+cd docker-funcall_zmq
+cp ../src/Dockerfile.funcall_zmq Dockerfile
+cp ../src/funcall_zmq.jl .
+cp -r ../src/Concore .
+cp ../src/funcall_zmq.iport concore.iport
+cp ../src/funcall_zmq.oport concore.oport
+cp -r ../src/funcall_zmq.dir/* .
+docker build -t docker-funcall_zmq .
+cd ..
+mkdir docker-funbody_zmq
+cd docker-funbody_zmq
+cp ../src/Dockerfile.funbody_zmq Dockerfile
+cp ../src/funbody_zmq.jl .
+cp -r ../src/Concore .
+cp ../src/funbody_zmq.iport concore.iport
+cp ../src/funbody_zmq.oport concore.oport
+cp -r ../src/funbody_zmq.dir/* .
+docker build -t docker-funbody_zmq .
+cd ..

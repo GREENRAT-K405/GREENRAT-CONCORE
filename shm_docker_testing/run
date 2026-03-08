@@ -1,0 +1,3 @@
+#!/bin/bash
+docker run --name=CZ --ipc=host -v 1_CU:/out1 -v 2_PYM:/in1:ro docker-controller&
+docker run --name=PZ --ipc=host -v 2_PYM:/out1 -v 1_CU:/in1:ro docker-pm&

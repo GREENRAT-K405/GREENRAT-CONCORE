@@ -1,0 +1,5 @@
+#!/bin/bash
+docker run --ipc=host --network=host --name=PZ -v vol_Y2:/out1 -v vol_U2:/in1:ro docker-pmjlmax&
+docker run --ipc=host --network=host --name=CZ -v vol_U:/out1 -v vol_Y:/in1:ro docker-cjlmax&
+docker run --ipc=host --network=host --name=F1 -v vol_Y:/out1 -v vol_U:/in1:ro docker-funcall_zmq&
+docker run --ipc=host --network=host --name=F2 -v vol_U2:/out1 -v vol_Y2:/in1:ro docker-funbody_zmq&

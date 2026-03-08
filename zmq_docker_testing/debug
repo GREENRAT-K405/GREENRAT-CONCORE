@@ -1,0 +1,5 @@
+#!/bin/bash
+docker run -it --name=PZ -v vol_Y2:/out1 -v vol_U2:/in1:ro docker-pmjlmax&
+docker run -it --name=CZ -v vol_U:/out1 -v vol_Y:/in1:ro docker-cjlmax&
+docker run -it --name=F1 -v vol_Y:/out1 -v vol_U:/in1:ro docker-funcall_zmq&
+docker run -it --name=F2 -v vol_U2:/out1 -v vol_Y2:/in1:ro docker-funbody_zmq&

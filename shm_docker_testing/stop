@@ -1,0 +1,5 @@
+#!/bin/bash
+docker stop CZ
+docker rm CZ
+docker stop PZ
+docker rm PZ

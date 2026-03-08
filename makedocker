@@ -1,4 +1,5 @@
 #!/bin/bash
+PYTHON=$(command -v python || command -v python3)
 if [ $# == 0 ]
 then
     echo "Make a concore study in docker"
@@ -34,6 +35,6 @@ then
     echo "cannot make $studydir because one already exists with that name"
     echo "either do ./destroy $studydir, or choose a unique name as 2nd arg"
 else
-    echo "python3 mkconcore.py $graphml $sourcedir $studydir docker"
-    python3 mkconcore.py $graphml $sourcedir $studydir docker 
+    echo "$PYTHON mkconcore.py $graphml $sourcedir $studydir docker"
+    $PYTHON mkconcore.py $graphml $sourcedir $studydir docker 
 fi
