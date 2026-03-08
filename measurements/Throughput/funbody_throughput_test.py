@@ -8,6 +8,9 @@ print("Starting ZMQ throughput server (funbody)")
 # Ensure these environment variables are set before running
 # Example: PORT_NAME_F2_OUT="F1_out" PORT_F2_OUT="5555" python funbody_throughput.py
 
+PORT_NAME_B_OUT = "throughput_port"
+PORT_B_OUT = "5555"
+
 # Initialize the ZMQ server port
 concore.init_zmq_port(
     port_name=PORT_NAME_B_OUT,

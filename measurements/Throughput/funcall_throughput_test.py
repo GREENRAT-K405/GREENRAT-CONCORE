@@ -8,11 +8,14 @@ print("Starting ZMQ throughput test (funcall)")
 # Ensure these environment variables are set before running
 # Example: PORT_NAME_IN_F1="F1_out" PORT_IN_F1="5555" python funcall_throughput.py
 
+PORT_NAME_IN_A = "throughput_port"
+PORT_IN_A = "5555"
+
 # Initialize the ZMQ connection to the funbody server
 concore.init_zmq_port(
     port_name=PORT_NAME_IN_A,
     port_type="connect",
-    address="tcp://192.168.0.109:" + PORT_IN_A, # Use 127.0.0.1 for local testing
+    address="tcp://127.0.0.1:" + PORT_IN_A, # Use 127.0.0.1 for local testing
     socket_type_str="REQ"
 )
 
