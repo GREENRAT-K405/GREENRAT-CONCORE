@@ -1,6 +1,6 @@
-# Concore Julia Frontend — Prototype for GSoC 2026
+# Concore Julia Implementation Prototype for GSoC 2026
 
-Welcome to my Julia implementation of Concore, which I have developed as a functional prototype for my Google Summer of Code (GSoC) 2026 project. My goal here is to introduce a fast, robust, and secure frontend that enables high-performance co-simulation node integrations natively in Julia.
+Welcome to my Julia implementation of Concore, which I have developed as a functional prototype for my Google Summer of Code (GSoC) 2026 project. My goal here is to introduce a fast, robust implementation of Concore natively in Julia.
 
 ## 🌟 Why I Built This Prototype
 
